@@ -2,18 +2,10 @@
     <div id="calendar">
         <!-- 日期 -->
         <ul class="days">
-            <!-- 核心 v-for循环 每一次循环用<li>标签创建一天 -->
-            <li v-for="dayobject in days">
-                <!--本月-->
-                <!--如果不是本月  改变类名加灰色-->
-                <!-- <span v-if="dayobject.day.getMonth()+1 != currentMonth" class="other-month">{{ dayobject.day.getDate() }}</span> -->
-
-                <!--如果是本月  还需要判断是不是这一天-->
-                <div v-if="dayobject.day.getMonth()+1 == currentMonth">
-                    <!--今天  同年同月同日-->
-                    <span v-if="dayobject.day.getFullYear() == new Date().getFullYear() && dayobject.day.getMonth() == new Date().getMonth() && dayobject.day.getDate() == new Date().getDate()" class="active">{{ dayobject.day.getDate() }}</span>
-                    <span v-else>{{ dayobject.day.getDate() }}</span>
-                </div>
+            <li v-for="item in theWeekArr" class="week"><!-- 循环渲染每一周 -->
+                <ul class="day">
+                    <li v-for="dayIte in item"><span :class="theUserYear==year&&theUserMonth==month&&day==dayIte?'theDay':''">{{dayIte}}</span></li><!-- 渲染每一天,class判断为当天，可根据该判断执行其它操作 -->
+                </ul>
             </li>
         </ul>
     </div>
@@ -23,78 +15,53 @@
 export default {
     data: function () {
         return {
-            currentDay: 1,
-            currentMonth: 1,
-            currentYear: 1970,
-            currentWeek: 1,
-            days: [],
+            year:new Date().getFullYear(),//当前用户系统年份，用作判断
+            month:new Date().getMonth()+1,//当前用户系统年月份，用作判断
+            day:new Date().getDay(),//当前用户系统年日，用作判断
+            dayArr: [],//没用，写错了
+            theWeekArr:[],//日期数组
+            theUserYear:"2012",//需要渲染的年份
+            theUserMonth:"2"//需要渲染的月份
         }
     },
     created() {
         let that = this;
-        that.initData(null);
+        that.initDateArr(this.theUserYear,this.theUserMonth);//执行主函数
     },
     methods: {
-        initData: function (cur) {
-            let that = this;
-            let leftcount = 0; //存放剩余数量
-            let date;
-            if (cur) {
-                date = new Date(cur);
-            } else {
-                let now = new Date();
-                let d = new Date(that.formatDate(now.getFullYear(), now.getMonth(), 1));
-                d.setDate(35);
-                date = new Date(that.formatDate(d.getFullYear(), d.getMonth() + 1, 1));
-            }
-            that.currentDay = date.getDate();
-            that.currentYear = date.getFullYear();
-            that.currentMonth = date.getMonth() + 1;
-            that.currentWeek = date.getDay(); // 1...6,0
-            if (that.currentWeek == 0) {
-                that.currentWeek = 7;
-            }
-            let str = that.formatDate(that.currentYear, that.currentMonth, that.currentDay);
-            that.days.length = 0;
-            // 今天是周日，放在第一行第1个位置
-            //初始化本周
-
-            for (let i = that.currentWeek; i >= 0; i--) {
-                let d = new Date(str);
-                d.setDate(d.getDate() - i);
-                let dayobject = {}; //用一个对象包装Date对象  以便为以后预定功能添加属性
-                dayobject.day = d;
-                that.days.push(dayobject); //将日期放入data 中的days数组 供页面渲染使用
-            }
-
-            //其他周
-            for (let i = 1; i <= 35 - that.currentWeek; i++) {
-                let d = new Date(str);
-                d.setDate(d.getDate() + i);
-                let dayobject = {};
-                dayobject.day = d;
-                console.log(new Date(d).getDate())
-                that.days.push(dayobject);
-            }
-        },
-        pickPre: function (year, month) {
-            let that = this;
-            // setDate(0); 上月最后一天
-            // setDate(-1); 上月倒数第二天
-            // setDate(dx) 参数dx为 上月最后一天的前后dx天
-            let d = new Date(that.formatDate(year, month, 1));
-            d.setDate(0);
-            that.initData(that.formatDate(d.getFullYear(), d.getMonth() + 1, 1));
-        },
-        pickNext: function (year, month) {
-            let that = this;
-            let d = new Date(that.formatDate(year, month, 1));
-            d.setDate(35);
-            that.initData(that.formatDate(d.getFullYear(), d.getMonth() + 1, 1));
-        },
-        pickYear: function (year, month) {
-            alert(year + "," + month);
-        },
+       initDateArr(year,month){
+           let that = this;
+           let theDateLastDay = new Date(new Date(that.formatDate(year,Number(month)+1,1)).getTime()-86400000);//获取该月最后一天
+           let lastWeek = theDateLastDay.getDay()+1;//获取当前月最后一周天数
+           let firstWeek = 7-new Date(that.formatDate(year,month,1)).getDay();//获取当前月第一周天数
+           let theMonthDaySum = theDateLastDay.getDate();//当前月总天数
+           let theMonthWeekSun = (theMonthDaySum-(firstWeek+lastWeek))/7+2;//当前月在日历上总跨度周数
+           let runDay = 0;//日期增值
+           for(let i = 0;i<theMonthWeekSun;i++){//循环总周数
+               that.theWeekArr.push([]);
+               for(let k = 0,kSun = 7;k<kSun;k++){
+                   if(i==0){//第一周
+                       if(k >= new Date(that.formatDate(year,month,1)).getDay()){//是否是开始第一天，若小于第一天则push空值
+                        runDay++;
+                        that.theWeekArr[i].push(runDay);
+                       }else{
+                        that.theWeekArr[i].push("");
+                       }
+                   }else if(i==theMonthWeekSun-1){//最后一周
+                       if(runDay<theDateLastDay.getDate()){//是否是最后一天，若大于最后一天，则push空值
+                           runDay++;
+                          that.theWeekArr[i].push(runDay);
+                       }else{
+                            that.theWeekArr[i].push("");
+                       }
+                   }else{//其它周正常插入
+                       runDay++;
+                       that.theWeekArr[i].push(runDay);
+                   }
+               }
+           }
+        //    let theDateLastDay = new Date(theDay);
+       },
         // 返回 类似 2016-01-02 格式的字符串
         formatDate: function (year, month, day) {
             let y = year;
@@ -114,32 +81,18 @@ export default {
   //   height: 4.7rem;
   background: #fff;
 }
-
-.days {
-  display: flex;
-  flex-wrap: wrap;
-  //   justify-content: space-around;
-  li {
-    display: inline-block;
-    width: 14.2%;
-    height: 0.8rem;
-    text-align: center;
-    line-height: 0.8rem;
-    font-size: 0.26rem;
-    color: #333;
-    div {
-      span {
-        height: 0.48rem;
-        width: 0.48rem;
-        line-height: 0.48rem;
-        display: inline-block;
-        &.active {
-          background: #f05858;
-          border-radius: 50%;
-          color: #fff;
-        }
-      }
-    }
-  }
+li{
+    list-style: none;
 }
+.week{
+    ul{
+        display:flex;
+        justify-content: space-between;
+        width:100%;
+    }
+    .theDay{
+        color:#f00;
+    }
+}
+
 </style>
